@@ -17,6 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  UserCircle,
+  Siren,
+  Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +45,11 @@ const navigation = [
     icon: ShieldCheck,
   },
   {
+    name: "Consent Centre",
+    href: "/dashboard/consent-centre",
+    icon: UserCircle,
+  },
+  {
     name: "Cookie Consent",
     href: "/dashboard/cookies",
     icon: Cookie,
@@ -62,9 +70,19 @@ const navigation = [
     icon: Search,
   },
   {
+    name: "Breach Management",
+    href: "/dashboard/breaches",
+    icon: Siren,
+  },
+  {
     name: "Vendor Risk",
     href: "/dashboard/vendors",
     icon: Users,
+  },
+  {
+    name: "Integrations",
+    href: "/dashboard/integrations",
+    icon: Plug,
   },
   {
     name: "Reports & Audit",
