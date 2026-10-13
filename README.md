@@ -4,17 +4,19 @@
 
 ## Features (Demo)
 
-- Secure Login Portal
-- Dashboard with Privacy Metrics
-- Data Discovery
-- DSAR / DPAR Management
-- Consent Management & Consent Centre
-- Cookie Consent Manager
-- ROPA (Records of Processing Activities)
-- DPIA (Data Protection Impact Assessment)
-- Gap Assessment with AI Recommendations
-- Vendor Risk Management
-- Reports & Audit Logs
+- ✅ Secure Login Portal
+- ✅ Dashboard with Privacy Metrics
+- ✅ Collapsible Sidebar + Topbar Layout
+- ✅ Auth Guard (protected routes)
+- ⏳ Data Discovery
+- ⏳ DSAR / DPAR Management
+- ⏳ Consent Management & Consent Centre
+- ⏳ Cookie Consent Manager
+- ⏳ ROPA (Records of Processing Activities)
+- ⏳ DPIA (Data Protection Impact Assessment)
+- ⏳ Gap Assessment with AI Recommendations
+- ⏳ Vendor Risk Management
+- ⏳ Reports & Audit Logs
 
 ## Tech Stack
 
@@ -43,12 +45,32 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── login/              # Login page
+│   ├── dashboard/          # Protected dashboard area
+│   │   ├── layout.tsx      # Dashboard layout wrapper
+│   │   └── page.tsx        # Main dashboard
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── layout/
+│   │   ├── Sidebar.tsx
+│   │   ├── Topbar.tsx
+│   │   └── DashboardLayout.tsx
+│   └── ui/
+├── hooks/
+│   └── useAuth.ts
+└── lib/
+    └── utils.ts
+```
+
 ## Status
 
-**Step 1 Complete** ✅  
-- Project setup  
-- Tailwind + professional theme (Indigo brand colors)  
-- Login page with mock authentication  
-- Folder structure ready
+**Step 1 Complete** ✅ – Project setup + Login page  
+**Step 2 Complete** ✅ – Sidebar + Topbar + Dashboard + Auth Guard  
 
-Next: Dashboard + Sidebar Layout + Core modules
+Next: Individual feature modules (Data Discovery, DSAR, Consent, etc.)
