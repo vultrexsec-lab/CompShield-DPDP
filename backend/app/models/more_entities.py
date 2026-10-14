@@ -189,3 +189,19 @@ class DPATemplate(Base):
     expires_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
     organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class ConsentArtifact(Base):
+    """Immutable consent event log — append-only, hash-chained for audit."""
+    __tablename__ = "consent_artifacts"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    consent_id: Mapped[int | None] = mapped_column(ForeignKey("consent_records.id"), nullable=True)
+    event_type: Mapped[str] = mapped_column(String(50))  # granted | withdrawn | updated
+    principal_email: Mapped[str] = mapped_column(String(255))
+    purpose: Mapped[str] = mapped_column(String(255))
+    payload: Mapped[str | None] = mapped_column(Text, nullable=True)
+    artifact_hash: Mapped[str] = mapped_column(String(64))  # SHA-256
+    prev_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    vendors_notified: Mapped[str | None] = mapped_column(Text, nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

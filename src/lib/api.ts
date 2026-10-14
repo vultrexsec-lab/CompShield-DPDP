@@ -384,3 +384,10 @@ export async function breachNotifyPrincipals(id: number) {
 export async function breachClose(id: number) {
   return api(`/api/v1/breaches/${id}/close`, { method: "POST" });
 }
+
+export async function listConsentArtifacts() {
+  return api<any[]>("/api/v1/consent/artifacts");
+}
+export async function verifyConsentChain() {
+  return api<{ total: number; valid: boolean; errors: any[]; tip: string }>("/api/v1/consent/artifacts/verify");
+}

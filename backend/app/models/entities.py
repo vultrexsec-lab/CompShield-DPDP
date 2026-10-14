@@ -85,6 +85,10 @@ class ConsentRecord(Base):
     channel: Mapped[str] = mapped_column(String(100), default="website")  # website, app, offline
     status: Mapped[str] = mapped_column(String(50), default="active")
     notice_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    language: Mapped[str] = mapped_column(String(20), default="en")
+    artifact_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA-256 of grant
+    revoke_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA-256 of revoke
+    vendors_notified: Mapped[str | None] = mapped_column(Text, nullable=True)
     given_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

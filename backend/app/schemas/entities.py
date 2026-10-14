@@ -67,6 +67,10 @@ class ConsentResponse(BaseModel):
     channel: str
     status: str
     notice_version: Optional[str] = None
+    language: Optional[str] = "en"
+    artifact_hash: Optional[str] = None
+    revoke_hash: Optional[str] = None
+    vendors_notified: Optional[str] = None
     given_at: Optional[datetime] = None
     withdrawn_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
