@@ -20,6 +20,7 @@ import {
   UserCircle,
   Siren,
   Plug,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,11 @@ const navigation = [
     name: "Data Discovery",
     href: "/dashboard/data-discovery",
     icon: Database,
+  },
+  {
+    name: "Remediation Hub",
+    href: "/dashboard/remediation",
+    icon: Wrench,
   },
   {
     name: "DSAR Management",
