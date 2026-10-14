@@ -351,3 +351,20 @@ export async function getDiscoveryCatalog() {
   return api<{ schemas: Record<string, Record<string, string[]>>; engines: string[] }>("/api/v1/discovery/catalog");
 }
 
+
+export async function listPurposes() { return api<any[]>("/api/v1/purposes"); }
+export async function createPurpose(data: object) { return api("/api/v1/purposes", { method: "POST", body: data }); }
+export async function deletePurpose(id: number) { return api(`/api/v1/purposes/${id}`, { method: "DELETE" }); }
+export async function linkVendorPurpose(purposeId: number, vendorId: number) {
+  return api(`/api/v1/purposes/${purposeId}/link-vendor?vendor_id=${vendorId}`, { method: "POST" });
+}
+export async function listDpaTemplates() { return api<any[]>("/api/v1/dpa-templates"); }
+export async function createDpaTemplate(data: object) { return api("/api/v1/dpa-templates", { method: "POST", body: data }); }
+export async function signDpa(id: number, vendor_id?: number, vendor_name?: string, expires_at?: string) {
+  const q = new URLSearchParams();
+  if (vendor_id) q.set("vendor_id", String(vendor_id));
+  if (vendor_name) q.set("vendor_name", vendor_name);
+  if (expires_at) q.set("expires_at", expires_at);
+  return api(`/api/v1/dpa-templates/${id}/sign?${q}`, { method: "POST" });
+}
+export async function deleteDpaTemplate(id: number) { return api(`/api/v1/dpa-templates/${id}`, { method: "DELETE" }); }

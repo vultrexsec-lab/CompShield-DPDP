@@ -9,7 +9,7 @@ from app.api.deps import get_current_user
 from app.models.user import User, Organization
 from app.models.more_entities import (
     Vendor, BreachIncident, DPIARecord, GapItem, CookieConfig,
-    Integration, Notification, OrgSettings,
+    Integration, Notification, OrgSettings, PurposeMapping, DPATemplate,
 )
 from app.models.entities import DSARRequest, ConsentRecord, DataSource, ROPAEntry, RemediationTask
 
@@ -351,3 +351,174 @@ def reports_summary(db: Session = Depends(get_db), user: User = Depends(get_curr
             {"id": "vendor-risk", "name": "Vendor Risk Report", "type": "risk"},
         ],
     }
+
+
+# ─── Purpose Mapping ────────────────────────────────────
+class PurposeIn(BaseModel):
+    purpose_name: str
+    description: Optional[str] = None
+    legal_basis: str = "consent"
+    vendor_ids: Optional[str] = None
+    vendor_names: Optional[str] = None
+    data_categories: Optional[str] = None
+    retention_period: Optional[str] = None
+    status: str = "active"
+
+
+@router.get("/purposes")
+def list_purposes(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    q = db.query(PurposeMapping)
+    if _org(user):
+        q = q.filter(PurposeMapping.organization_id == _org(user))
+    items = q.order_by(PurposeMapping.created_at.desc()).all()
+    if not items and _org(user):
+        defaults = [
+            ("Marketing Communications", "Email/SMS campaigns", "consent", "Email, Phone", "2 years"),
+            ("Product Analytics", "Usage metrics and improvement", "legitimate_use", "Device, Usage data", "1 year"),
+            ("Customer Support", "Ticket and call handling", "contract", "Name, Email, Phone", "3 years"),
+            ("Payments", "Transaction processing", "contract", "Name, Financial", "7 years"),
+        ]
+        for name, desc, basis, cats, ret in defaults:
+            db.add(PurposeMapping(
+                purpose_name=name, description=desc, legal_basis=basis,
+                data_categories=cats, retention_period=ret, status="active",
+                organization_id=_org(user),
+            ))
+        db.commit()
+        items = db.query(PurposeMapping).filter(PurposeMapping.organization_id == _org(user)).all()
+    return items
+
+
+@router.post("/purposes", status_code=201)
+def create_purpose(p: PurposeIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    item = PurposeMapping(**p.model_dump(), organization_id=_org(user))
+    db.add(item); db.commit(); db.refresh(item)
+    return item
+
+
+@router.patch("/purposes/{pid}")
+def update_purpose(pid: int, p: PurposeIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    item = db.query(PurposeMapping).filter(PurposeMapping.id == pid).first()
+    if not item: raise HTTPException(404, "Not found")
+    for k, v in p.model_dump(exclude_unset=True).items():
+        setattr(item, k, v)
+    db.commit(); db.refresh(item)
+    return item
+
+
+@router.delete("/purposes/{pid}", status_code=204)
+def delete_purpose(pid: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    item = db.query(PurposeMapping).filter(PurposeMapping.id == pid).first()
+    if not item: raise HTTPException(404, "Not found")
+    db.delete(item); db.commit()
+
+
+@router.post("/purposes/{pid}/link-vendor")
+def link_vendor_to_purpose(pid: int, vendor_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    item = db.query(PurposeMapping).filter(PurposeMapping.id == pid).first()
+    if not item: raise HTTPException(404, "Purpose not found")
+    v = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not v: raise HTTPException(404, "Vendor not found")
+    ids = [x for x in (item.vendor_ids or "").split(",") if x.strip()]
+    names = [x for x in (item.vendor_names or "").split(",") if x.strip()]
+    if str(vendor_id) not in ids:
+        ids.append(str(vendor_id))
+        names.append(v.name)
+    item.vendor_ids = ",".join(ids)
+    item.vendor_names = ", ".join(names)
+    # also add purpose to vendor
+    vp = [x.strip() for x in (v.purposes or "").split(",") if x.strip()]
+    if item.purpose_name not in vp:
+        vp.append(item.purpose_name)
+        v.purposes = ", ".join(vp)
+    db.commit(); db.refresh(item)
+    return item
+
+
+# ─── DPA Templates ──────────────────────────────────────
+class DPAIn(BaseModel):
+    title: str
+    template_type: str = "standard"
+    vendor_id: Optional[int] = None
+    vendor_name: Optional[str] = None
+    version: str = "1.0"
+    status: str = "draft"
+    body: Optional[str] = None
+    signed_at: Optional[str] = None
+    expires_at: Optional[str] = None
+
+
+@router.get("/dpa-templates")
+def list_dpa(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    q = db.query(DPATemplate)
+    if _org(user):
+        q = q.filter(DPATemplate.organization_id == _org(user))
+    items = q.order_by(DPATemplate.created_at.desc()).all()
+    if not items and _org(user):
+        defaults = [
+            ("Standard DPA — India DPDP", "standard", "1.0", "active",
+             "This Data Processing Agreement governs processing of personal data under the Digital Personal Data Protection Act, 2023. The Processor shall process data only on documented instructions of the Fiduciary, implement appropriate security safeguards, and assist with data principal rights requests."),
+            ("SCC Addendum — Cross-border", "standard", "1.0", "active",
+             "Standard Contractual Clauses addendum for cross-border transfers. Parties agree to supplementary measures where required."),
+            ("Vendor DPA — SaaS Processors", "standard", "1.1", "active",
+             "Template for SaaS subprocessors including audit rights, breach notification within 72 hours, and sub-processor approval workflow."),
+        ]
+        for title, ttype, ver, st, body in defaults:
+            db.add(DPATemplate(title=title, template_type=ttype, version=ver, status=st, body=body, organization_id=_org(user)))
+        db.commit()
+        items = db.query(DPATemplate).filter(DPATemplate.organization_id == _org(user)).all()
+    return items
+
+
+@router.post("/dpa-templates", status_code=201)
+def create_dpa(p: DPAIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    item = DPATemplate(**p.model_dump(), organization_id=_org(user))
+    db.add(item); db.commit(); db.refresh(item)
+    return item
+
+
+@router.patch("/dpa-templates/{did}")
+def update_dpa(did: int, p: DPAIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    item = db.query(DPATemplate).filter(DPATemplate.id == did).first()
+    if not item: raise HTTPException(404, "Not found")
+    for k, v in p.model_dump(exclude_unset=True).items():
+        setattr(item, k, v)
+    db.commit(); db.refresh(item)
+    return item
+
+
+@router.post("/dpa-templates/{did}/sign")
+def sign_dpa(did: int, vendor_id: Optional[int] = None, vendor_name: Optional[str] = None,
+             expires_at: Optional[str] = None, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from datetime import datetime, timezone
+    item = db.query(DPATemplate).filter(DPATemplate.id == did).first()
+    if not item: raise HTTPException(404, "Not found")
+    # create signed copy
+    signed = DPATemplate(
+        title=item.title + " (Signed)",
+        template_type="signed",
+        vendor_id=vendor_id or item.vendor_id,
+        vendor_name=vendor_name or item.vendor_name,
+        version=item.version,
+        status="signed",
+        body=item.body,
+        signed_at=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        expires_at=expires_at,
+        organization_id=_org(user),
+    )
+    db.add(signed)
+    if vendor_id:
+        v = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+        if v:
+            v.dpa_signed = True
+            if expires_at:
+                v.dpa_expiry = expires_at
+    db.commit(); db.refresh(signed)
+    return signed
+
+
+@router.delete("/dpa-templates/{did}", status_code=204)
+def delete_dpa(did: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    item = db.query(DPATemplate).filter(DPATemplate.id == did).first()
+    if not item: raise HTTPException(404, "Not found")
+    db.delete(item); db.commit()

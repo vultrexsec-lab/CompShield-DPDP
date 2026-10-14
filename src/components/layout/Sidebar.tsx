@@ -21,6 +21,8 @@ import {
   Siren,
   Plug,
   Wrench,
+  Link2,
+  FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +91,16 @@ const navigation = [
     name: "Vendor Risk",
     href: "/dashboard/vendors",
     icon: Users,
+  },
+  {
+    name: "Purpose Mapping",
+    href: "/dashboard/purpose-mapping",
+    icon: Link2,
+  },
+  {
+    name: "DPA Templates",
+    href: "/dashboard/dpa-templates",
+    icon: FileSignature,
   },
   {
     name: "Integrations",

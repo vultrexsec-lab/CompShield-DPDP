@@ -149,3 +149,36 @@ class DSARApprovalAction(Base):
     actor_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class PurposeMapping(Base):
+    """Maps processing purposes to vendors / consent channels."""
+    __tablename__ = "purpose_mappings"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    purpose_name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    legal_basis: Mapped[str] = mapped_column(String(100), default="consent")
+    vendor_ids: Mapped[str | None] = mapped_column(Text, nullable=True)  # comma-separated vendor ids
+    vendor_names: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_categories: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retention_period: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="active")
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class DPATemplate(Base):
+    """Data Processing Agreement templates and signed records."""
+    __tablename__ = "dpa_templates"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(500))
+    template_type: Mapped[str] = mapped_column(String(100), default="standard")  # standard | custom | signed
+    vendor_id: Mapped[int | None] = mapped_column(ForeignKey("vendors.id"), nullable=True)
+    vendor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    version: Mapped[str] = mapped_column(String(50), default="1.0")
+    status: Mapped[str] = mapped_column(String(50), default="draft")  # draft | active | signed | expired
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    signed_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    expires_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

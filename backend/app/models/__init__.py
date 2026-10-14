@@ -4,7 +4,7 @@ from app.models.entities import (
 )
 from app.models.more_entities import (
     DSARApprovalConfig, DSARApprovalAction,
-    Vendor, BreachIncident, DPIARecord, GapItem, CookieConfig, Integration, Notification, OrgSettings,
+    Vendor, BreachIncident, DPIARecord, GapItem, CookieConfig, Integration, Notification, OrgSettings, PurposeMapping, DPATemplate,
 )
 
 __all__ = [
