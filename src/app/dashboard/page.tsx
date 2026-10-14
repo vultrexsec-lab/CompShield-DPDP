@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Database,
   FileText,
@@ -14,13 +15,14 @@ import {
   Activity,
 } from "lucide-react";
 import Link from "next/link";
+import { getDashboardStats, type DashboardStats } from "@/lib/api";
 
-const stats = [
+const defaultStats = [
   {
     name: "Data Assets Discovered",
     value: "2,847",
     change: "+12.5%",
-    trend: "up",
+    trend: "up" as const,
     icon: Database,
     color: "bg-blue-500",
     lightColor: "bg-blue-50 text-blue-600",
@@ -29,7 +31,7 @@ const stats = [
     name: "Pending DSARs",
     value: "23",
     change: "-8.2%",
-    trend: "down",
+    trend: "down" as const,
     icon: FileText,
     color: "bg-amber-500",
     lightColor: "bg-amber-50 text-amber-600",
@@ -38,7 +40,7 @@ const stats = [
     name: "Consent Rate",
     value: "94.2%",
     change: "+2.1%",
-    trend: "up",
+    trend: "up" as const,
     icon: ShieldCheck,
     color: "bg-emerald-500",
     lightColor: "bg-emerald-50 text-emerald-600",
@@ -47,7 +49,7 @@ const stats = [
     name: "Risk Score",
     value: "Low",
     change: "Improved",
-    trend: "up",
+    trend: "up" as const,
     icon: AlertTriangle,
     color: "bg-purple-500",
     lightColor: "bg-purple-50 text-purple-600",
@@ -136,6 +138,57 @@ const dsarStatus = [
 ];
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState(defaultStats);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    getDashboardStats()
+      .then((s: DashboardStats) => {
+        setLive(true);
+        setStats([
+          {
+            name: "Data Sources",
+            value: String(s.sources_count),
+            change: "Live",
+            trend: "up",
+            icon: Database,
+            color: "bg-blue-500",
+            lightColor: "bg-blue-50 text-blue-600",
+          },
+          {
+            name: "Pending DSARs",
+            value: String(s.dsar_pending),
+            change: `${s.dsar_total} total`,
+            trend: s.dsar_pending > 0 ? "down" : "up",
+            icon: FileText,
+            color: "bg-amber-500",
+            lightColor: "bg-amber-50 text-amber-600",
+          },
+          {
+            name: "Active Consents",
+            value: String(s.consent_active),
+            change: `${s.consent_withdrawn} withdrawn`,
+            trend: "up",
+            icon: ShieldCheck,
+            color: "bg-emerald-500",
+            lightColor: "bg-emerald-50 text-emerald-600",
+          },
+          {
+            name: "Open Findings",
+            value: String(s.findings_open + s.remediation_open),
+            change: `${s.ropa_count} ROPA`,
+            trend: "up",
+            icon: AlertTriangle,
+            color: "bg-purple-500",
+            lightColor: "bg-purple-50 text-purple-600",
+          },
+        ]);
+      })
+      .catch(() => {
+        setLive(false);
+      });
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -147,9 +200,15 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full border border-emerald-100">
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full border ${
+              live
+                ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                : "bg-slate-50 text-slate-600 border-slate-200"
+            }`}
+          >
             <CheckCircle2 className="w-4 h-4" />
-            DPDP Compliant
+            {live ? "Live API Connected" : "Demo Mode"}
           </span>
           <span className="text-sm text-slate-400">
             Last updated: Just now

@@ -36,6 +36,11 @@ const navigation = [
     icon: Database,
   },
   {
+    name: "PII Scanner",
+    href: "/dashboard/pii-scanner",
+    icon: Search,
+  },
+  {
     name: "Remediation Hub",
     href: "/dashboard/remediation",
     icon: Wrench,

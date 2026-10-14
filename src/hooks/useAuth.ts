@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { clearAuth, getToken } from "@/lib/api";
 
 export function useAuth(requireAuth = true) {
   const router = useRouter();
@@ -11,8 +12,10 @@ export function useAuth(requireAuth = true) {
   useEffect(() => {
     const auth = localStorage.getItem("compshield_auth");
     const storedUser = localStorage.getItem("compshield_user");
+    const token = getToken();
 
-    if (auth === "true" && storedUser) {
+    // Prefer token-based session; still accept legacy mock flag
+    if ((token || auth === "true") && storedUser) {
       setIsAuthenticated(true);
       setUser(storedUser);
     } else {
@@ -24,8 +27,7 @@ export function useAuth(requireAuth = true) {
   }, [requireAuth, router]);
 
   const logout = () => {
-    localStorage.removeItem("compshield_auth");
-    localStorage.removeItem("compshield_user");
+    clearAuth();
     setIsAuthenticated(false);
     setUser(null);
     router.replace("/login");

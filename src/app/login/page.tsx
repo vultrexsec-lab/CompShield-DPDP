@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Eye, EyeOff, Lock, Mail, KeyRound } from "lucide-react";
+import { loginApi, setAuth } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,31 +29,46 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    setTimeout(() => {
-      if (authMode === "otp") {
-        if (otp === "123456" || otp.length >= 4) {
-          localStorage.setItem("compshield_auth", "true");
-          localStorage.setItem("compshield_user", email || "admin@compshield.com");
-          router.push("/dashboard");
-        } else {
-          setError("Invalid OTP. Use 123456 for demo.");
-          setLoading(false);
-        }
-        return;
+    // OTP demo path (local)
+    if (authMode === "otp") {
+      if (otp === "123456" || otp.length >= 4) {
+        setAuth("demo-otp-token", {
+          email: email || "admin@compshield.com",
+          full_name: "Admin User",
+        });
+        router.push("/dashboard");
+      } else {
+        setError("Invalid OTP. Use 123456 for demo.");
+        setLoading(false);
       }
+      return;
+    }
 
+    // Try real backend first
+    try {
+      const data = await loginApi(email, password);
+      setAuth(data.access_token, {
+        email: data.user.email,
+        full_name: data.user.full_name,
+      });
+      router.push("/dashboard");
+      return;
+    } catch {
+      // Fallback: offline demo credentials
       if (
         (email === "admin@compshield.com" && password === "demo123") ||
         (email === "demo@compshield.com" && password === "demo123")
       ) {
-        localStorage.setItem("compshield_auth", "true");
-        localStorage.setItem("compshield_user", email);
+        setAuth("demo-offline-token", {
+          email,
+          full_name: "Admin User",
+        });
         router.push("/dashboard");
-      } else {
-        setError("Invalid email or password. Use demo credentials.");
-        setLoading(false);
+        return;
       }
-    }, 800);
+      setError("Invalid email or password. Use demo credentials.");
+      setLoading(false);
+    }
   };
 
   const handleSendOtp = () => {
@@ -67,8 +83,10 @@ export default function LoginPage() {
   const handleSSO = (provider: string) => {
     setLoading(true);
     setTimeout(() => {
-      localStorage.setItem("compshield_auth", "true");
-      localStorage.setItem("compshield_user", `${provider.toLowerCase()}@compshield.com`);
+      setAuth(`demo-sso-${provider}`, {
+        email: `${provider.toLowerCase()}@compshield.com`,
+        full_name: `${provider} User`,
+      });
       router.push("/dashboard");
     }, 600);
   };
