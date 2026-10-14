@@ -24,6 +24,7 @@ import {
   Link2,
   FileSignature,
   Scale,
+  Languages,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,11 @@ const navigation = [
     name: "Consent Management",
     href: "/dashboard/consent",
     icon: ShieldCheck,
+  },
+  {
+    name: "Consent Notices",
+    href: "/dashboard/notices",
+    icon: Languages,
   },
   {
     name: "Consent Centre",

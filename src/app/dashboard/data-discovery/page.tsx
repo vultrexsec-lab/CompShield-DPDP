@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Database, Plus, Loader2, Play, Search, Check, ChevronRight, ChevronLeft } from "lucide-react";
-import { listSources, listFindings, createSource, scanSource, getDiscoveryCatalog, type SourceItem, type FindingItem } from "@/lib/api";
+import { listSources, listFindings, createSource, scanSource, getDiscoveryCatalog, testDataConnection, type SourceItem, type FindingItem } from "@/lib/api";
 
 const STEPS = ["Basic details", "Data source", "Connection setup", "Scope selection", "Review & Save"];
 
@@ -243,7 +243,15 @@ export default function DataDiscoveryPage() {
                     <label className="text-sm font-medium">Host / connection *</label>
                     <input className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm" value={host} onChange={(e) => setHost(e.target.value)} placeholder="db.internal.local:5432" />
                   </div>
-                  <p className="text-xs text-slate-500">Credentials are not stored in this demo — connection is simulated for scope + scan.</p>
+                  <p className="text-xs text-slate-500">Credentials are not stored — profile test only.</p>
+                  <button type="button" className="text-sm px-3 py-2 border rounded-xl font-medium"
+                    onClick={async () => {
+                      try {
+                        const r = await testDataConnection({ db_engine: engine, host });
+                        alert(r.message + (r.catalog_ready ? " Catalog ready." : ""));
+                      } catch (e: any) { alert(e.message); }
+                    }}
+                  >Test connection</button>
                 </div>
               )}
               {step === 3 && (

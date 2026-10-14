@@ -398,3 +398,16 @@ export async function getComplianceScore(sector = "general") {
 export async function getComplianceSectors() {
   return api<any>("/api/v1/compliance/sectors");
 }
+
+export async function listNoticeLanguages() {
+  return api<{ available: { code: string; language: string }[]; note: string }>("/api/v1/notices");
+}
+export async function renderNotice(data: { language: string; purpose: string; organization_name?: string }) {
+  return api<any>("/api/v1/notices/render", { method: "POST", body: data });
+}
+export async function scanDocumentPii(data: { text: string; filename?: string; source_engine?: string; document_type?: string }) {
+  return api<any>("/api/v1/pii/scan/document", { method: "POST", body: data });
+}
+export async function testDataConnection(data: object) {
+  return api<any>("/api/v1/discovery/test-connection", { method: "POST", body: data });
+}

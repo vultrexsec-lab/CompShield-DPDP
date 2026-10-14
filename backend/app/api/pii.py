@@ -87,3 +87,32 @@ def list_pii_types(current_user: User = Depends(get_current_user)):
             {"id": "dl", "name": "Driving License", "validator": "Format", "severity": "high", "category": "sensitive"},
         ],
     }
+
+
+class DocumentScanRequest(BaseModel):
+    text: str = Field(default="", max_length=200_000)
+    filename: Optional[str] = None
+    source_engine: str = Field(default="hybrid")
+    document_type: Optional[str] = None
+
+
+@router.post("/scan/document")
+def scan_document(payload: DocumentScanRequest, current_user: User = Depends(get_current_user)):
+    """Hybrid: Regex/validators on text or OCR-extracted text. Raw PII never stored."""
+    text = payload.text or ""
+    hint = (payload.filename or "") + " " + (payload.document_type or "")
+    combined = text if text.strip() else hint
+    summary = detect_pii_summary(combined if combined.strip() else " ")
+    engines = []
+    if payload.source_engine in ("regex", "hybrid"):
+        engines.append("regex+validator")
+    if payload.source_engine in ("ocr", "hybrid"):
+        engines.append("ocr-text-layer")
+    return {
+        "filename": payload.filename,
+        "document_type": payload.document_type,
+        "engines": engines,
+        "pipeline": "OCR extract → India PII validators → mask → findings",
+        "note": "Production: attach Tesseract/cloud OCR; demo uses OCR text paste + validators.",
+        **summary,
+    }

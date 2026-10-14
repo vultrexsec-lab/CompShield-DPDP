@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Scan, Shield, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
-import { scanPii } from "@/lib/api";
+import { scanPii, scanDocumentPii } from "@/lib/api";
 
 const SAMPLE = `Customer: Rahul Sharma
 Email: rahul.sharma@email.com
@@ -157,6 +157,32 @@ export default function PiiScannerPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Hybrid document / OCR pipeline */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <h2 className="font-semibold text-slate-900">Document / OCR hybrid scan</h2>
+        <p className="text-xs text-slate-500">
+          Enterprise path: OCR extracts text from image/PDF → India validators (Regex + Verhoeff/Luhn). Paste OCR output or scanned text below.
+        </p>
+        <input type="text" id="doc-filename" placeholder="Filename e.g. aadhaar_scan.jpg" className="w-full border rounded-xl px-3 py-2 text-sm" />
+        <textarea id="doc-ocr-text" rows={4} placeholder="Paste OCR-extracted text or document content..." className="w-full border rounded-xl px-3 py-2 text-sm font-mono" defaultValue={"Name: Suresh Kumar\nAadhaar: 2345 6789 0121\nPAN: ABCDE1234F"} />
+        <button
+          type="button"
+          onClick={async () => {
+            const filename = (document.getElementById("doc-filename") as HTMLInputElement)?.value;
+            const ocr = (document.getElementById("doc-ocr-text") as HTMLTextAreaElement)?.value || "";
+            setLoading(true); setError("");
+            try {
+              const data = await scanDocumentPii({ text: ocr, filename, source_engine: "hybrid", document_type: "image" });
+              setResult(data);
+            } catch (e: any) { setError(e.message); }
+            finally { setLoading(false); }
+          }}
+          className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-medium"
+        >
+          Run hybrid OCR + Regex scan
+        </button>
       </div>
     </div>
   );
