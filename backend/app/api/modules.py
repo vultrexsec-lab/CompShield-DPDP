@@ -23,11 +23,24 @@ def _org(u: User):
 # ─── Schemas (inline for speed) ─────────────────────────
 class VendorIn(BaseModel):
     name: str
-    category: str = "SaaS"
-    risk_level: str = "medium"
-    status: str = "active"
-    dpa_signed: bool = False
+    category: str = "Analytics"
+    vendor_type: Optional[str] = None
+    website_url: Optional[str] = None
+    primary_domain: Optional[str] = None
+    hq_country: Optional[str] = None
     contact_email: Optional[str] = None
+    risk_level: str = "medium"
+    status: str = "draft"
+    onboarding_stage: int = 1
+    onboarding_type: str = "manual"
+    data_categories: Optional[str] = None
+    processing_purpose: Optional[str] = None
+    purposes: Optional[str] = None
+    sub_processors: Optional[str] = None
+    dpa_signed: bool = False
+    dpa_expiry: Optional[str] = None
+    certifications: Optional[str] = None
+    cross_border: bool = False
     notes: Optional[str] = None
 
 class BreachIn(BaseModel):
@@ -75,7 +88,11 @@ def list_vendors(db: Session = Depends(get_db), user: User = Depends(get_current
 
 @router.post("/vendors", status_code=201)
 def create_vendor(p: VendorIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    v = Vendor(**p.model_dump(), organization_id=_org(user))
+    data = p.model_dump()
+    if data.get("onboarding_stage", 1) >= 6:
+        data["status"] = "active"
+        data["onboarding_stage"] = 6
+    v = Vendor(**data, organization_id=_org(user))
     db.add(v); db.commit(); db.refresh(v)
     return v
 

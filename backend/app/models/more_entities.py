@@ -9,11 +9,28 @@ class Vendor(Base):
     __tablename__ = "vendors"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
-    category: Mapped[str] = mapped_column(String(100), default="SaaS")
-    risk_level: Mapped[str] = mapped_column(String(50), default="medium")
-    status: Mapped[str] = mapped_column(String(50), default="active")
-    dpa_signed: Mapped[bool] = mapped_column(Boolean, default=False)
+    category: Mapped[str] = mapped_column(String(100), default="SaaS")  # Analytics, Advertising...
+    vendor_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    website_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    primary_domain: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    hq_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    risk_level: Mapped[str] = mapped_column(String(50), default="medium")
+    status: Mapped[str] = mapped_column(String(50), default="draft")  # draft | pending_review | active
+    onboarding_stage: Mapped[int] = mapped_column(Integer, default=1)  # 1-6
+    onboarding_type: Mapped[str] = mapped_column(String(50), default="manual")  # manual | self
+    # Data processing
+    data_categories: Mapped[str | None] = mapped_column(Text, nullable=True)  # comma-separated
+    processing_purpose: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Purpose mapping
+    purposes: Mapped[str | None] = mapped_column(Text, nullable=True)  # Marketing, Analytics...
+    # Sub-processors
+    sub_processors: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Compliance & DPA
+    dpa_signed: Mapped[bool] = mapped_column(Boolean, default=False)
+    dpa_expiry: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    certifications: Mapped[str | None] = mapped_column(String(500), nullable=True)  # ISO, SOC2
+    cross_border: Mapped[bool] = mapped_column(Boolean, default=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
