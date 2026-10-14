@@ -1,0 +1,109 @@
+"""Additional DPDP modules: vendors, breaches, DPIA, gap, cookies, integrations, notifications."""
+from datetime import datetime, timezone, date
+from sqlalchemy import String, Boolean, DateTime, Date, ForeignKey, Text, Integer, Float
+from sqlalchemy.orm import Mapped, mapped_column
+from app.core.database import Base
+
+
+class Vendor(Base):
+    __tablename__ = "vendors"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(100), default="SaaS")
+    risk_level: Mapped[str] = mapped_column(String(50), default="medium")
+    status: Mapped[str] = mapped_column(String(50), default="active")
+    dpa_signed: Mapped[bool] = mapped_column(Boolean, default=False)
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class BreachIncident(Base):
+    __tablename__ = "breach_incidents"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    incident_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(500))
+    severity: Mapped[str] = mapped_column(String(50), default="medium")
+    status: Mapped[str] = mapped_column(String(50), default="investigating")
+    affected: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notified_board: Mapped[bool] = mapped_column(Boolean, default=False)
+    notified_users: Mapped[bool] = mapped_column(Boolean, default=False)
+    detected_at: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class DPIARecord(Base):
+    __tablename__ = "dpia_records"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(String(50), default="draft")
+    risk_level: Mapped[str] = mapped_column(String(50), default="medium")
+    owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class GapItem(Base):
+    __tablename__ = "gap_items"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(500))
+    department: Mapped[str] = mapped_column(String(100), default="General")
+    severity: Mapped[str] = mapped_column(String(50), default="medium")
+    status: Mapped[str] = mapped_column(String(50), default="open")
+    recommendation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class CookieConfig(Base):
+    __tablename__ = "cookie_configs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    domain: Mapped[str] = mapped_column(String(255))
+    banner_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    essential_only: Mapped[bool] = mapped_column(Boolean, default=False)
+    analytics: Mapped[bool] = mapped_column(Boolean, default=True)
+    marketing: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_count: Mapped[int] = mapped_column(Integer, default=0)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class Integration(Base):
+    __tablename__ = "integrations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(100), default="Database")
+    status: Mapped[str] = mapped_column(String(50), default="available")  # connected | available
+    records_synced: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(500))
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    type: Mapped[str] = mapped_column(String(50), default="info")  # info | warning | success | alert
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    link: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class OrgSettings(Base):
+    __tablename__ = "org_settings"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), unique=True)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dpo_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dpo_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    timezone: Mapped[str] = mapped_column(String(50), default="Asia/Kolkata")
+    dsar_sla_days: Mapped[int] = mapped_column(Integer, default=30)
+    notify_email: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_inapp: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

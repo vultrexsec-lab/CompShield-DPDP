@@ -3,6 +3,7 @@ from datetime import datetime, timezone, date, timedelta
 from sqlalchemy.orm import Session
 from app.core.security import get_password_hash
 from app.models.user import User, Organization
+from app.models.more_entities import Vendor, BreachIncident, DPIARecord, GapItem, CookieConfig, Integration, Notification
 from app.models.entities import (
     DSARRequest,
     ConsentRecord,
@@ -190,6 +191,53 @@ def _seed_entities(db: Session, org_id) -> None:
         if status == "completed":
             t.completed_at = datetime.now(timezone.utc)
         db.add(t)
+
+
+    # Vendors
+    for name, cat, risk, dpa in [
+        ("AWS India", "Cloud", "low", True),
+        ("Razorpay", "Payments", "medium", True),
+        ("Freshworks", "Support", "medium", False),
+        ("ClearTax", "Compliance", "low", True),
+    ]:
+        db.add(Vendor(name=name, category=cat, risk_level=risk, dpa_signed=dpa, status="active", organization_id=org_id))
+
+    # Breaches
+    db.add(BreachIncident(incident_id="BR-2026-001", title="Misconfigured S3 bucket exposure", severity="medium", status="contained", affected="Metadata only", notified_board=True, detected_at="2026-09-28 09:15", organization_id=org_id))
+    db.add(BreachIncident(incident_id="BR-2026-002", title="Phishing credential compromise", severity="high", status="resolved", affected="3 support accounts", notified_board=True, notified_users=True, detected_at="2026-08-15 18:00", organization_id=org_id))
+
+    # DPIA
+    db.add(DPIARecord(title="Customer Analytics Platform", status="approved", risk_level="medium", owner="Rahul Verma", summary="Processing behaviour data for product improvement", organization_id=org_id))
+    db.add(DPIARecord(title="HR Biometric Attendance", status="in_review", risk_level="high", owner="Sneha Kapoor", summary="Fingerprint data for office attendance", organization_id=org_id))
+
+    # Gaps
+    for title, dept, sev, rec in [
+        ("Missing retention policy for support tickets", "Support", "high", "Define 12-month retention and auto-delete"),
+        ("Marketing list without consent linkage", "Marketing", "high", "Link every contact to consent record"),
+        ("Vendor DPA not signed for Freshworks", "Procurement", "medium", "Execute DPA before next renewal"),
+    ]:
+        db.add(GapItem(title=title, department=dept, severity=sev, recommendation=rec, status="open", organization_id=org_id))
+
+    # Cookies
+    db.add(CookieConfig(domain="www.acme.com", banner_enabled=True, analytics=True, marketing=False, consent_count=12840, organization_id=org_id))
+
+    # Integrations defaults
+    for name, cat, st in [
+        ("PostgreSQL", "Database", "connected"), ("Salesforce", "CRM", "connected"),
+        ("AWS S3", "Storage", "connected"), ("Zendesk", "Support", "connected"),
+        ("MySQL", "Database", "available"), ("Snowflake", "Data Warehouse", "available"),
+        ("Office 365", "Productivity", "available"), ("HubSpot", "CRM", "available"),
+    ]:
+        db.add(Integration(name=name, category=cat, status=st, records_synced="Synced" if st=="connected" else None, organization_id=org_id))
+
+    # Notifications
+    for title, msg, typ, link in [
+        ("New DSAR received", "Priya Sharma submitted an access request", "info", "/dashboard/dsar"),
+        ("Scan completed", "HR Database scan found 320 PII fields", "success", "/dashboard/data-discovery"),
+        ("High severity gap", "Missing retention policy flagged", "warning", "/dashboard/gap-assessment"),
+        ("Breach contained", "S3 exposure marked contained", "alert", "/dashboard/breaches"),
+    ]:
+        db.add(Notification(title=title, message=msg, type=typ, link=link, organization_id=org_id))
 
     db.commit()
     print("Demo compliance data seeded")

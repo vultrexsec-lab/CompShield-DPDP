@@ -1,142 +1,51 @@
 "use client";
-
-import { AlertTriangle, Plus, Eye, CheckCircle2, Clock } from "lucide-react";
-
-const dpias = [
-  {
-    id: "DPIA-2026-012",
-    title: "Customer Analytics Platform",
-    status: "approved",
-    riskLevel: "Medium",
-    owner: "Product Team",
-    created: "2026-09-15",
-    reviewed: "2026-10-01",
-  },
-  {
-    id: "DPIA-2026-011",
-    title: "AI-based Credit Scoring",
-    status: "in_review",
-    riskLevel: "High",
-    owner: "Risk Team",
-    created: "2026-10-05",
-    reviewed: "—",
-  },
-  {
-    id: "DPIA-2026-010",
-    title: "Employee Monitoring Tool",
-    status: "draft",
-    riskLevel: "High",
-    owner: "HR",
-    created: "2026-10-10",
-    reviewed: "—",
-  },
-  {
-    id: "DPIA-2026-009",
-    title: "Mobile App Location Tracking",
-    status: "approved",
-    riskLevel: "Medium",
-    owner: "Mobile Team",
-    created: "2026-08-20",
-    reviewed: "2026-09-05",
-  },
-];
-
-export default function DPIAPage() {
+import { useEffect, useState } from "react";
+import { AlertTriangle, Plus, Loader2 } from "lucide-react";
+import { listDpia, createDpia } from "@/lib/api";
+export default function DpiaPage() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [show, setShow] = useState(false);
+  const [form, setForm] = useState({ title: "", risk_level: "medium", owner: "", summary: "", status: "draft" });
+  const load = () => { setLoading(true); listDpia().then(setItems).catch((e)=>alert(e.message)).finally(()=>setLoading(false)); };
+  useEffect(()=>{load();},[]);
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            DPIA – Data Protection Impact Assessment
-          </h1>
-          <p className="text-slate-500 mt-1">
-            Conduct and document impact assessments for high-risk processing
-          </p>
-        </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition">
-          <Plus className="w-4 h-4" />
-          New DPIA
-        </button>
+      <div className="flex justify-between flex-wrap gap-4">
+        <div><h1 className="text-2xl font-bold text-slate-900">DPIA</h1><p className="text-slate-500 mt-1">Data Protection Impact Assessments</p></div>
+        <button onClick={()=>setShow(true)} className="px-4 py-2.5 bg-brand-600 text-white rounded-xl font-medium inline-flex gap-2 items-center"><Plus className="w-4 h-4"/>New DPIA</button>
       </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <p className="text-sm text-slate-500">Total DPIAs</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">12</p>
+      {loading ? <div className="flex justify-center py-16"><Loader2 className="animate-spin w-8 h-8 text-slate-400"/></div> : (
+        <div className="grid gap-4">
+          {items.map((d)=>(
+            <div key={d.id} className="bg-white border rounded-2xl p-5 flex gap-3">
+              <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl h-fit"><AlertTriangle className="w-5 h-5"/></div>
+              <div>
+                <h3 className="font-semibold">{d.title}</h3>
+                <p className="text-sm text-slate-600 mt-1">{d.summary}</p>
+                <div className="flex flex-wrap gap-2 mt-3 text-xs">
+                  <span className="px-2.5 py-1 bg-slate-100 rounded-full capitalize">{d.status}</span>
+                  <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">{d.risk_level} risk</span>
+                  {d.owner && <span className="px-2.5 py-1 bg-slate-100 rounded-full">Owner: {d.owner}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+          {items.length===0 && <p className="text-center text-slate-400 py-12">No DPIAs</p>}
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <p className="text-sm text-slate-500">Pending Review</p>
-          <p className="text-2xl font-bold text-amber-600 mt-1">3</p>
+      )}
+      {show && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <form onSubmit={async(e)=>{e.preventDefault();await createDpia(form);setShow(false);load();}} className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3">
+            <h3 className="font-semibold text-lg">New DPIA</h3>
+            <input required className="w-full border rounded-xl px-3 py-2.5 text-sm" placeholder="Title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
+            <input className="w-full border rounded-xl px-3 py-2.5 text-sm" placeholder="Owner" value={form.owner} onChange={e=>setForm({...form,owner:e.target.value})}/>
+            <textarea className="w-full border rounded-xl px-3 py-2.5 text-sm" placeholder="Summary" value={form.summary} onChange={e=>setForm({...form,summary:e.target.value})}/>
+            <select className="w-full border rounded-xl px-3 py-2.5 text-sm" value={form.risk_level} onChange={e=>setForm({...form,risk_level:e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+            <div className="flex gap-2"><button type="button" onClick={()=>setShow(false)} className="flex-1 border rounded-xl py-2.5">Cancel</button><button className="flex-1 bg-brand-600 text-white rounded-xl py-2.5">Create</button></div>
+          </form>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <p className="text-sm text-slate-500">Approved</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">8</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="text-left text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100 bg-slate-50">
-              <th className="px-6 py-3 font-medium">DPIA ID</th>
-              <th className="px-6 py-3 font-medium">Title</th>
-              <th className="px-6 py-3 font-medium">Risk Level</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 font-medium">Owner</th>
-              <th className="px-6 py-3 font-medium">Created</th>
-              <th className="px-6 py-3 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {dpias.map((d) => (
-              <tr key={d.id} className="hover:bg-slate-50/50 transition">
-                <td className="px-6 py-4 text-sm font-mono text-brand-600">
-                  {d.id}
-                </td>
-                <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                  {d.title}
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                      d.riskLevel === "High"
-                        ? "bg-red-50 text-red-700"
-                        : "bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {d.riskLevel}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 text-sm ${
-                      d.status === "approved"
-                        ? "text-emerald-600"
-                        : d.status === "in_review"
-                        ? "text-blue-600"
-                        : "text-slate-500"
-                    }`}
-                  >
-                    {d.status === "approved" ? (
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    ) : (
-                      <Clock className="w-3.5 h-3.5" />
-                    )}
-                    {d.status.replace("_", " ")}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-slate-600">{d.owner}</td>
-                <td className="px-6 py-4 text-sm text-slate-500">{d.created}</td>
-                <td className="px-6 py-4">
-                  <button className="p-1.5 hover:bg-slate-100 rounded-lg transition">
-                    <Eye className="w-4 h-4 text-slate-400" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      )}
     </div>
   );
 }

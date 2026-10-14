@@ -1,18 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Bell,
-  Search,
-  LogOut,
-  User,
-  Settings,
-  ChevronDown,
-  Moon,
-  Sun,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Search, LogOut, Settings, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { listNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/api";
+import Link from "next/link";
 
 interface TopbarProps {
   sidebarCollapsed: boolean;
@@ -23,35 +16,19 @@ export default function Topbar({ sidebarCollapsed }: TopbarProps) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
-  const notifications = [
-    {
-      id: 1,
-      title: "New DSAR Request",
-      message: "Priya Sharma requested data access",
-      time: "2 min ago",
-      unread: true,
-    },
-    {
-      id: 2,
-      title: "Consent Expiring",
-      message: "12 consents expire in 7 days",
-      time: "1 hour ago",
-      unread: true,
-    },
-    {
-      id: 3,
-      title: "Gap Assessment Complete",
-      message: "Marketing department scan finished",
-      time: "3 hours ago",
-      unread: false,
-    },
-  ];
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle("dark");
+  const loadNotifs = () => {
+    listNotifications().then(setNotifications).catch(() => setNotifications([]));
   };
+
+  useEffect(() => {
+    loadNotifs();
+    const t = setInterval(loadNotifs, 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const unread = notifications.filter((n) => !n.read).length;
 
   return (
     <header
@@ -60,135 +37,50 @@ export default function Topbar({ sidebarCollapsed }: TopbarProps) {
         sidebarCollapsed ? "left-[72px]" : "left-64"
       )}
     >
-      {/* Search */}
       <div className="flex items-center flex-1 max-w-md">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search data assets, DSARs, reports..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-          />
+          <input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
       </div>
-
-      {/* Right side */}
       <div className="flex items-center gap-2">
-        {/* Dark mode toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
-          title="Toggle dark mode"
-        >
+        <button onClick={() => { setDarkMode(!darkMode); document.documentElement.classList.toggle("dark"); }} className="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100">
           {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
-
-        {/* Notifications */}
         <div className="relative">
-          <button
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowUserMenu(false);
-            }}
-            className="relative p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
-          >
+          <button onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }} className="relative p-2.5 rounded-xl text-slate-500 hover:bg-slate-100">
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+            {unread > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />}
           </button>
-
           {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-semibold text-slate-900">Notifications</h3>
-                <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">
-                  2 new
-                </span>
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
+              <div className="px-4 py-3 border-b flex justify-between items-center">
+                <span className="font-semibold text-sm">Notifications</span>
+                {unread > 0 && (
+                  <button onClick={async () => { await markAllNotificationsRead(); loadNotifs(); }} className="text-xs text-brand-600 font-medium">Mark all read</button>
+                )}
               </div>
-              <div className="max-h-72 overflow-y-auto">
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 && <p className="text-sm text-slate-400 text-center py-8">No notifications</p>}
                 {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className={cn(
-                      "px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0",
-                      n.unread && "bg-brand-50/50"
-                    )}
-                  >
-                    <div className="flex items-start gap-2">
-                      {n.unread && (
-                        <div className="w-2 h-2 bg-brand-500 rounded-full mt-1.5 flex-shrink-0"></div>
-                      )}
-                      <div className={cn(!n.unread && "ml-4")}>
-                        <p className="text-sm font-medium text-slate-900">
-                          {n.title}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {n.message}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">{n.time}</p>
-                      </div>
-                    </div>
-                  </div>
+                  <button key={n.id} onClick={async () => { if (!n.read) await markNotificationRead(n.id); loadNotifs(); setShowNotifications(false); }} className={cn("w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50", !n.read && "bg-brand-50/40")}>
+                    <p className="text-sm font-medium">{n.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{n.message}</p>
+                  </button>
                 ))}
-              </div>
-              <div className="px-4 py-2.5 border-t border-slate-100 text-center">
-                <button className="text-sm text-brand-600 hover:text-brand-700 font-medium">
-                  View all notifications
-                </button>
               </div>
             </div>
           )}
         </div>
-
-        {/* User Menu */}
-        <div className="relative ml-1">
-          <button
-            onClick={() => {
-              setShowUserMenu(!showUserMenu);
-              setShowNotifications(false);
-            }}
-            className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl hover:bg-slate-100 transition"
-          >
-            <div className="w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-              {user ? user.charAt(0).toUpperCase() : "A"}
-            </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-slate-900 leading-none">
-                Admin User
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[120px]">
-                {user || "admin@compshield.com"}
-              </p>
-            </div>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
+        <div className="relative">
+          <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-slate-100">
+            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white text-sm font-semibold">{(user || "A")[0].toUpperCase()}</div>
+            <span className="text-sm font-medium hidden sm:block max-w-[120px] truncate">{user || "Admin"}</span>
           </button>
-
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-slate-100">
-                <p className="text-sm font-medium text-slate-900">Admin User</p>
-                <p className="text-xs text-slate-500 truncate">
-                  {user || "admin@compshield.com"}
-                </p>
-              </div>
-              <div className="py-1">
-                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition">
-                  <User className="w-4 h-4 text-slate-400" />
-                  Profile
-                </button>
-                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition">
-                  <Settings className="w-4 h-4 text-slate-400" />
-                  Settings
-                </button>
-              </div>
-              <div className="border-t border-slate-100 py-1">
-                <button
-                  onClick={logout}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign out
-                </button>
-              </div>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
+              <Link href="/dashboard/settings" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-slate-50" onClick={() => setShowUserMenu(false)}><Settings className="w-4 h-4" /> Settings</Link>
+              <button onClick={logout} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"><LogOut className="w-4 h-4" /> Log out</button>
             </div>
           )}
         </div>

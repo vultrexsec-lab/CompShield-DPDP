@@ -283,3 +283,43 @@ export async function validatePii(pii_type: string, value: string) {
 }
 
 export { API_BASE };
+
+// ─── Vendors / Breaches / DPIA / Gaps / Cookies / Integrations / Notifications / Settings / Reports
+
+export async function listVendors() { return api<any[]>("/api/v1/vendors"); }
+export async function createVendor(data: object) { return api("/api/v1/vendors", { method: "POST", body: data }); }
+export async function deleteVendor(id: number) { return api(`/api/v1/vendors/${id}`, { method: "DELETE" }); }
+
+export async function listBreaches() { return api<any[]>("/api/v1/breaches"); }
+export async function createBreach(data: object) { return api("/api/v1/breaches", { method: "POST", body: data }); }
+export async function updateBreach(id: number, params: Record<string, string | boolean>) {
+  const q = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => q.set(k === "status" ? "status_val" : k, String(v)));
+  return api(`/api/v1/breaches/${id}?${q}`, { method: "PATCH" });
+}
+
+export async function listDpia() { return api<any[]>("/api/v1/dpia"); }
+export async function createDpia(data: object) { return api("/api/v1/dpia", { method: "POST", body: data }); }
+
+export async function listGaps() { return api<any[]>("/api/v1/gaps"); }
+export async function createGap(data: object) { return api("/api/v1/gaps", { method: "POST", body: data }); }
+export async function updateGap(id: number, status: string) {
+  return api(`/api/v1/gaps/${id}?status_val=${status}`, { method: "PATCH" });
+}
+
+export async function listCookies() { return api<any[]>("/api/v1/cookies"); }
+export async function createCookie(data: object) { return api("/api/v1/cookies", { method: "POST", body: data }); }
+export async function updateCookie(id: number, data: object) { return api(`/api/v1/cookies/${id}`, { method: "PATCH", body: data }); }
+
+export async function listIntegrations() { return api<any[]>("/api/v1/integrations"); }
+export async function connectIntegration(id: number) { return api(`/api/v1/integrations/${id}/connect`, { method: "POST" }); }
+export async function disconnectIntegration(id: number) { return api(`/api/v1/integrations/${id}/disconnect`, { method: "POST" }); }
+
+export async function listNotifications() { return api<any[]>("/api/v1/notifications"); }
+export async function markNotificationRead(id: number) { return api(`/api/v1/notifications/${id}/read`, { method: "POST" }); }
+export async function markAllNotificationsRead() { return api("/api/v1/notifications/read-all", { method: "POST" }); }
+
+export async function getSettings() { return api<any>("/api/v1/settings"); }
+export async function updateSettings(data: object) { return api("/api/v1/settings", { method: "PATCH", body: data }); }
+
+export async function getReportsSummary() { return api<any>("/api/v1/reports/summary"); }

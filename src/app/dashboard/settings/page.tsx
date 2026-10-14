@@ -1,107 +1,33 @@
 "use client";
-
-import { Settings, Building2, Users, Bell, Shield, Key } from "lucide-react";
-
+import { useEffect, useState } from "react";
+import { Loader2, Save } from "lucide-react";
+import { getSettings, updateSettings } from "@/lib/api";
 export default function SettingsPage() {
+  const [form, setForm] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  useEffect(()=>{ getSettings().then(setForm).catch(alert).finally(()=>setLoading(false)); },[]);
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin w-8 h-8 text-slate-400"/></div>;
+  if (!form) return <p className="text-slate-500">Unable to load settings — login with live backend session</p>;
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="text-slate-500 mt-1">
-          Manage your organization and platform preferences
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sidebar nav */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-1">
-          {[
-            { icon: Building2, label: "Organization", active: true },
-            { icon: Users, label: "Team Members" },
-            { icon: Bell, label: "Notifications" },
-            { icon: Shield, label: "Security" },
-            { icon: Key, label: "API Keys & Integrations" },
-          ].map((item) => (
-            <button
-              key={item.label}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                item.active
-                  ? "bg-brand-50 text-brand-700"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </button>
-          ))}
+    <div className="space-y-6 max-w-2xl">
+      <div><h1 className="text-2xl font-bold text-slate-900">Settings</h1><p className="text-slate-500 mt-1">Organization preferences</p></div>
+      <form onSubmit={async(e)=>{e.preventDefault();setSaving(true);try{const u=await updateSettings({company_name:form.company_name,dpo_name:form.dpo_name,dpo_email:form.dpo_email,timezone:form.timezone,dsar_sla_days:Number(form.dsar_sla_days),notify_email:form.notify_email,notify_inapp:form.notify_inapp});setForm(u);setMsg("Saved");}catch(err:any){setMsg(err.message);}finally{setSaving(false);}}} className="bg-white border rounded-2xl p-6 space-y-4">
+        <div><label className="text-sm font-medium">Company name</label><input className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm" value={form.company_name||""} onChange={e=>setForm({...form,company_name:e.target.value})}/></div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div><label className="text-sm font-medium">DPO name</label><input className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm" value={form.dpo_name||""} onChange={e=>setForm({...form,dpo_name:e.target.value})}/></div>
+          <div><label className="text-sm font-medium">DPO email</label><input type="email" className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm" value={form.dpo_email||""} onChange={e=>setForm({...form,dpo_email:e.target.value})}/></div>
         </div>
-
-        {/* Content */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
-          <h2 className="font-semibold text-slate-900">Organization Profile</h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Company Name
-              </label>
-              <input
-                type="text"
-                defaultValue="Acme Technologies Pvt Ltd"
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Industry
-              </label>
-              <select className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-                <option>Technology</option>
-                <option>Finance</option>
-                <option>Healthcare</option>
-                <option>E-commerce</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                DPO Name
-              </label>
-              <input
-                type="text"
-                defaultValue="Rahul Verma"
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                DPO Email
-              </label>
-              <input
-                type="email"
-                defaultValue="dpo@acme.com"
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Registered Address
-            </label>
-            <textarea
-              rows={3}
-              defaultValue="P4 502 Pentagon Towers, Magarpatta Cybercity, Hadapsar, Pune, Maharashtra 411028"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-
-          <div className="pt-4 border-t border-slate-100">
-            <button className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition">
-              Save Changes
-            </button>
-          </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div><label className="text-sm font-medium">Timezone</label><input className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm" value={form.timezone||"Asia/Kolkata"} onChange={e=>setForm({...form,timezone:e.target.value})}/></div>
+          <div><label className="text-sm font-medium">DSAR SLA days</label><input type="number" className="mt-1 w-full border rounded-xl px-3 py-2.5 text-sm" value={form.dsar_sla_days??30} onChange={e=>setForm({...form,dsar_sla_days:e.target.value})}/></div>
         </div>
-      </div>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!form.notify_email} onChange={e=>setForm({...form,notify_email:e.target.checked})}/> Email notifications</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!form.notify_inapp} onChange={e=>setForm({...form,notify_inapp:e.target.checked})}/> In-app notifications</label>
+        {msg && <p className="text-sm text-emerald-600">{msg}</p>}
+        <button disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl font-medium"><Save className="w-4 h-4"/>{saving?"Saving...":"Save"}</button>
+      </form>
     </div>
   );
 }
