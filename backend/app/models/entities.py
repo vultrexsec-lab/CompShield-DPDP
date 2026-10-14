@@ -103,6 +103,12 @@ class DataSource(Base):
     name: Mapped[str] = mapped_column(String(255))
     source_type: Mapped[str] = mapped_column(String(100))  # database, saas, file, cloud
     connection_info: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    db_engine: Mapped[str | None] = mapped_column(String(50), nullable=True)  # postgres, mysql...
+    schema_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    selected_tables: Mapped[str | None] = mapped_column(Text, nullable=True)  # comma or json
+    selected_columns: Mapped[str | None] = mapped_column(Text, nullable=True)
+    onboarding_stage: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(50), default="pending")
     records_found: Mapped[int] = mapped_column(Integer, default=0)
     pii_count: Mapped[int] = mapped_column(Integer, default=0)

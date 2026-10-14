@@ -80,6 +80,11 @@ class DataSourceCreate(BaseModel):
     name: str
     source_type: str = "database"
     connection_info: Optional[str] = None
+    host: Optional[str] = None
+    db_engine: Optional[str] = None
+    schema_name: Optional[str] = None
+    selected_tables: Optional[str] = None
+    selected_columns: Optional[str] = None
 
 
 class DataSourceResponse(BaseModel):
@@ -87,6 +92,12 @@ class DataSourceResponse(BaseModel):
     name: str
     source_type: str
     connection_info: Optional[str] = None
+    host: Optional[str] = None
+    db_engine: Optional[str] = None
+    schema_name: Optional[str] = None
+    selected_tables: Optional[str] = None
+    selected_columns: Optional[str] = None
+    onboarding_stage: Optional[int] = 1
     status: str
     records_found: int
     pii_count: int

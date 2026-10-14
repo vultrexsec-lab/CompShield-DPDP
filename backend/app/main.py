@@ -18,6 +18,47 @@ from app.services.seed import seed_demo_user
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            for table, cols in {
+                'data_sources': [
+                    ('host','VARCHAR(255)'),('db_engine','VARCHAR(50)'),('schema_name','VARCHAR(255)'),
+                    ('selected_tables','TEXT'),('selected_columns','TEXT'),('onboarding_stage','INTEGER DEFAULT 1'),
+                ],
+                'vendors': [
+                    ('vendor_type','VARCHAR(100)'),('website_url','VARCHAR(500)'),('primary_domain','VARCHAR(255)'),
+                    ('hq_country','VARCHAR(100)'),('onboarding_stage','INTEGER DEFAULT 1'),('onboarding_type','VARCHAR(50)'),
+                    ('data_categories','TEXT'),('processing_purpose','TEXT'),('purposes','TEXT'),
+                    ('sub_processors','TEXT'),('dpa_expiry','VARCHAR(50)'),('certifications','VARCHAR(500)'),
+                    ('cross_border','BOOLEAN DEFAULT FALSE'),
+                ],
+            }.items():
+                for col, typ in cols:
+                    try: conn.execute(text(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {typ}'))
+                    except Exception:
+                        try: conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {col} {typ}'))
+                        except Exception: pass
+    except Exception as e:
+        print('migrate', e)
+    try:
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            for col, typ in [
+                ('vendor_type','VARCHAR(100)'),('website_url','VARCHAR(500)'),
+                ('primary_domain','VARCHAR(255)'),('hq_country','VARCHAR(100)'),
+                ('onboarding_stage','INTEGER DEFAULT 1'),('onboarding_type','VARCHAR(50)'),
+                ('data_categories','TEXT'),('processing_purpose','TEXT'),('purposes','TEXT'),
+                ('sub_processors','TEXT'),('dpa_expiry','VARCHAR(50)'),
+                ('certifications','VARCHAR(500)'),('cross_border','BOOLEAN DEFAULT FALSE'),
+            ]:
+                try:
+                    conn.execute(text(f'ALTER TABLE vendors ADD COLUMN IF NOT EXISTS {col} {typ}'))
+                except Exception:
+                    try: conn.execute(text(f'ALTER TABLE vendors ADD COLUMN {col} {typ}'))
+                    except Exception: pass
+    except Exception as e:
+        print('vendor migrate', e)
     db = SessionLocal()
     try:
         seed_demo_user(db)

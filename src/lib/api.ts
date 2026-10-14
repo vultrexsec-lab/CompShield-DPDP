@@ -346,3 +346,8 @@ export async function listApprovalConfigs() {
 export async function saveApprovalConfig(data: object) {
   return api("/api/v1/dsar/config/approvals", { method: "POST", body: data });
 }
+
+export async function getDiscoveryCatalog() {
+  return api<{ schemas: Record<string, Record<string, string[]>>; engines: string[] }>("/api/v1/discovery/catalog");
+}
+
