@@ -1,300 +1,169 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Database,
-  Search,
-  Filter,
-  RefreshCw,
-  CheckCircle2,
-  AlertCircle,
-  Server,
-  Cloud,
-  HardDrive,
-  MoreHorizontal,
-  Play,
-  Eye,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Database, Plus, Loader2, Play, Search } from "lucide-react";
+import { listSources, listFindings, createSource, scanSource, type SourceItem, type FindingItem } from "@/lib/api";
 
-const dataSources = [
-  {
-    id: 1,
-    name: "HR Database (PostgreSQL)",
-    type: "Database",
-    records: 12450,
-    personalData: 8920,
-    lastScan: "2 hours ago",
-    status: "completed",
-    risk: "medium",
-    icon: Server,
-  },
-  {
-    id: 2,
-    name: "Customer CRM (Salesforce)",
-    type: "Cloud App",
-    records: 45680,
-    personalData: 42100,
-    lastScan: "5 hours ago",
-    status: "completed",
-    risk: "low",
-    icon: Cloud,
-  },
-  {
-    id: 3,
-    name: "Employee File Share (S3)",
-    type: "Storage",
-    records: 8930,
-    personalData: 3120,
-    lastScan: "1 day ago",
-    status: "completed",
-    risk: "high",
-    icon: HardDrive,
-  },
-  {
-    id: 4,
-    name: "Marketing Email List",
-    type: "Database",
-    records: 23400,
-    personalData: 23400,
-    lastScan: "3 hours ago",
-    status: "completed",
-    risk: "low",
-    icon: Server,
-  },
-  {
-    id: 5,
-    name: "Support Tickets (Zendesk)",
-    type: "Cloud App",
-    records: 18760,
-    personalData: 15400,
-    lastScan: "Scanning...",
-    status: "scanning",
-    risk: "medium",
-    icon: Cloud,
-  },
-  {
-    id: 6,
-    name: "Finance ERP System",
-    type: "Database",
-    records: 6780,
-    personalData: 4210,
-    lastScan: "6 hours ago",
-    status: "completed",
-    risk: "high",
-    icon: Server,
-  },
+const MOCK_SOURCES: SourceItem[] = [
+  { id: 1, name: "HR Database (PostgreSQL)", source_type: "database", status: "completed", records_found: 12450, pii_count: 320 },
+  { id: 2, name: "Customer CRM (Salesforce)", source_type: "saas", status: "completed", records_found: 45680, pii_count: 890 },
+  { id: 3, name: "AWS S3 – Customer Docs", source_type: "cloud", status: "pending", records_found: 0, pii_count: 0 },
 ];
 
-const categories = [
-  { name: "Email Addresses", count: 48230, color: "bg-blue-500" },
-  { name: "Phone Numbers", count: 31240, color: "bg-emerald-500" },
-  { name: "Names", count: 52890, color: "bg-purple-500" },
-  { name: "Aadhaar / PAN", count: 8450, color: "bg-amber-500" },
-  { name: "Addresses", count: 19320, color: "bg-rose-500" },
-  { name: "Financial Data", count: 6780, color: "bg-indigo-500" },
+const MOCK_FINDINGS: FindingItem[] = [
+  { id: 1, pii_type: "aadhaar", location: "employees.aadhaar_number", sample_masked: "XXXX-XXXX-1234", confidence: 0.98, severity: "high", status: "open" },
+  { id: 2, pii_type: "pan", location: "employees.pan", sample_masked: "ABCDE****F", confidence: 0.97, severity: "high", status: "open" },
+  { id: 3, pii_type: "email", location: "contacts.email", sample_masked: "u***@email.com", confidence: 0.99, severity: "medium", status: "open" },
 ];
 
 export default function DataDiscoveryPage() {
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [sources, setSources] = useState<SourceItem[]>([]);
+  const [findings, setFindings] = useState<FindingItem[]>([]);
+  const [live, setLive] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState<number | null>(null);
 
-  const filtered = dataSources.filter((ds) => {
-    const matchSearch = ds.name.toLowerCase().includes(search.toLowerCase());
-    const matchFilter =
-      filter === "all" ||
-      (filter === "high" && ds.risk === "high") ||
-      (filter === "scanning" && ds.status === "scanning");
-    return matchSearch && matchFilter;
-  });
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [s, f] = await Promise.all([listSources(), listFindings()]);
+      setSources(s);
+      setFindings(f);
+      setLive(true);
+    } catch {
+      setSources(MOCK_SOURCES);
+      setFindings(MOCK_FINDINGS);
+      setLive(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleAddSource = async () => {
+    const name = prompt("Source name (e.g. Payroll DB)");
+    if (!name) return;
+    try {
+      if (live) {
+        await createSource({ name, source_type: "database" });
+        load();
+      } else {
+        setSources((p) => [...p, { id: Date.now(), name, source_type: "database", status: "pending", records_found: 0, pii_count: 0 }]);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleScan = async (id: number) => {
+    setScanning(id);
+    try {
+      if (live) {
+        await scanSource(id);
+        await load();
+      } else {
+        setSources((p) => p.map((s) => (s.id === id ? { ...s, status: "completed", records_found: 1000, pii_count: 40 } : s)));
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Scan failed");
+    } finally {
+      setScanning(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Data Discovery</h1>
-          <p className="text-slate-500 mt-1">
-            Automatically discover and classify personal data across all systems
-          </p>
+          <p className="text-slate-500 mt-1">Find and classify personal data across systems</p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition">
-          <Play className="w-4 h-4" />
-          Run New Scan
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-              <Database className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">6</p>
-              <p className="text-sm text-slate-500">Data Sources</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">116,000+</p>
-              <p className="text-sm text-slate-500">Records Scanned</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
-              <Search className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">97,150</p>
-              <p className="text-sm text-slate-500">Personal Data Found</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">2</p>
-              <p className="text-sm text-slate-500">High Risk Sources</p>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${live ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+            {live ? "Live API" : "Demo data"}
+          </span>
+          <button onClick={handleAddSource} className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl">
+            <Plus className="w-4 h-4" /> Add Source
+          </button>
         </div>
       </div>
 
-      {/* Data Categories */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h2 className="font-semibold text-slate-900 mb-4">
-          Personal Data Categories
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {categories.map((cat) => (
-            <div
-              key={cat.name}
-              className="text-center p-4 rounded-xl bg-slate-50 hover:bg-slate-100 transition"
-            >
-              <div
-                className={`w-3 h-3 ${cat.color} rounded-full mx-auto mb-2`}
-              ></div>
-              <p className="text-lg font-bold text-slate-900">
-                {cat.count.toLocaleString()}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">{cat.name}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Filters + Table */}
-      <div className="bg-white rounded-2xl border border-slate-200">
-        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-          <h2 className="font-semibold text-slate-900">Connected Sources</h2>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search sources..."
-                className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 w-48"
-              />
-            </div>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="all">All Sources</option>
-              <option value="high">High Risk</option>
-              <option value="scanning">Scanning</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                <th className="px-6 py-3 font-medium">Source</th>
-                <th className="px-6 py-3 font-medium">Type</th>
-                <th className="px-6 py-3 font-medium">Records</th>
-                <th className="px-6 py-3 font-medium">Personal Data</th>
-                <th className="px-6 py-3 font-medium">Last Scan</th>
-                <th className="px-6 py-3 font-medium">Risk</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map((ds) => (
-                <tr key={ds.id} className="hover:bg-slate-50/50 transition">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-slate-100 rounded-lg">
-                        <ds.icon className="w-4 h-4 text-slate-600" />
-                      </div>
-                      <span className="text-sm font-medium text-slate-900">
-                        {ds.name}
-                      </span>
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {sources.map((s) => (
+              <div key={s.id} className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Database className="w-5 h-5" /></div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900 text-sm">{s.name}</h3>
+                      <p className="text-xs text-slate-500 capitalize">{s.source_type}</p>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">{ds.type}</td>
-                  <td className="px-6 py-4 text-sm text-slate-900 font-medium">
-                    {ds.records.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-900 font-medium">
-                    {ds.personalData.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">
-                    {ds.lastScan}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                        ds.risk === "high"
-                          ? "bg-red-50 text-red-700"
-                          : ds.risk === "medium"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-emerald-50 text-emerald-700"
-                      }`}
-                    >
-                      {ds.risk}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {ds.status === "scanning" ? (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-blue-600">
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        Scanning
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Completed
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="p-1.5 hover:bg-slate-100 rounded-lg transition">
-                      <Eye className="w-4 h-4 text-slate-400" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.status === "completed" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                    {s.status}
+                  </span>
+                </div>
+                <div className="mt-4 flex gap-4 text-sm">
+                  <div><span className="text-slate-500">Records</span><p className="font-semibold">{s.records_found.toLocaleString()}</p></div>
+                  <div><span className="text-slate-500">PII</span><p className="font-semibold text-amber-600">{s.pii_count}</p></div>
+                </div>
+                <button
+                  onClick={() => handleScan(s.id)}
+                  disabled={scanning === s.id}
+                  className="mt-4 w-full inline-flex items-center justify-center gap-2 py-2 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {scanning === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                  {scanning === s.id ? "Scanning..." : "Run Scan"}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+              <Search className="w-4 h-4 text-slate-400" />
+              <h2 className="font-semibold text-slate-900">PII Findings</h2>
+              <span className="text-xs text-slate-400">({findings.length})</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs text-slate-500 uppercase border-b border-slate-100 bg-slate-50">
+                    <th className="px-6 py-3 font-medium">Type</th>
+                    <th className="px-6 py-3 font-medium">Location</th>
+                    <th className="px-6 py-3 font-medium">Sample</th>
+                    <th className="px-6 py-3 font-medium">Confidence</th>
+                    <th className="px-6 py-3 font-medium">Severity</th>
+                    <th className="px-6 py-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {findings.map((f) => (
+                    <tr key={f.id} className="hover:bg-slate-50/50">
+                      <td className="px-6 py-3 text-sm font-medium uppercase text-slate-900">{f.pii_type}</td>
+                      <td className="px-6 py-3 text-sm font-mono text-slate-600">{f.location}</td>
+                      <td className="px-6 py-3 text-sm font-mono text-slate-500">{f.sample_masked}</td>
+                      <td className="px-6 py-3 text-sm">{Math.round(f.confidence * 100)}%</td>
+                      <td className="px-6 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.severity === "high" || f.severity === "critical" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
+                          {f.severity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-sm capitalize text-slate-600">{f.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {findings.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">No findings yet — run a scan</p>}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

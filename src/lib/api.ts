@@ -1,6 +1,6 @@
 /**
- * CompShield API client — connects frontend to Render backend.
- * Falls back gracefully if backend is cold/unreachable.
+ * CompShield API client — full backend connection.
+ * Graceful fallback when Render is cold or offline.
  */
 
 const API_BASE =
@@ -15,60 +15,42 @@ export function setAuth(token: string, user: { email: string; full_name?: string
   localStorage.setItem("compshield_token", token);
   localStorage.setItem("compshield_auth", "true");
   localStorage.setItem("compshield_user", user.email);
-  if (user.full_name) {
-    localStorage.setItem("compshield_user_name", user.full_name);
-  }
+  if (user.full_name) localStorage.setItem("compshield_user_name", user.full_name);
 }
 
 export function clearAuth() {
-  localStorage.removeItem("compshield_token");
-  localStorage.removeItem("compshield_auth");
-  localStorage.removeItem("compshield_user");
-  localStorage.removeItem("compshield_user_name");
+  ["compshield_token", "compshield_auth", "compshield_user", "compshield_user_name"].forEach(
+    (k) => localStorage.removeItem(k)
+  );
 }
 
-type RequestOptions = {
-  method?: string;
-  body?: unknown;
-  auth?: boolean;
-};
+type RequestOptions = { method?: string; body?: unknown; auth?: boolean };
 
-export async function api<T = unknown>(
-  path: string,
-  options: RequestOptions = {}
-): Promise<T> {
+export async function api<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, auth = true } = options;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (auth) {
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
-
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {
       const err = await res.json();
       detail = err.detail || err.message || detail;
       if (Array.isArray(detail)) detail = detail.map((d: { msg?: string }) => d.msg).join(", ");
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     throw new Error(String(detail));
   }
-
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-// ─── Auth ───────────────────────────────────────────────
 export type LoginResponse = {
   access_token: string;
   token_type: string;
@@ -89,11 +71,6 @@ export async function loginApi(email: string, password: string) {
   });
 }
 
-export async function getMe() {
-  return api("/api/v1/auth/me");
-}
-
-// ─── Dashboard ──────────────────────────────────────────
 export type DashboardStats = {
   dsar_total: number;
   dsar_pending: number;
@@ -109,10 +86,25 @@ export async function getDashboardStats() {
   return api<DashboardStats>("/api/v1/dashboard/stats");
 }
 
-// ─── DSAR ───────────────────────────────────────────────
+// DSAR
+export type DsarItem = {
+  id: number;
+  request_id: string;
+  request_type: string;
+  status: string;
+  principal_name: string;
+  principal_email: string;
+  principal_phone?: string;
+  description?: string;
+  assigned_to?: string;
+  due_date?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export async function listDsar(status?: string) {
   const q = status ? `?status=${status}` : "";
-  return api<unknown[]>(`/api/v1/dsar${q}`);
+  return api<DsarItem[]>(`/api/v1/dsar${q}`);
 }
 
 export async function createDsar(data: {
@@ -121,14 +113,32 @@ export async function createDsar(data: {
   principal_email: string;
   principal_phone?: string;
   description?: string;
+  assigned_to?: string;
 }) {
-  return api("/api/v1/dsar", { method: "POST", body: data });
+  return api<DsarItem>("/api/v1/dsar", { method: "POST", body: data });
 }
 
-// ─── Consent ────────────────────────────────────────────
+export async function updateDsar(id: number, data: Partial<{ status: string; assigned_to: string; description: string }>) {
+  return api<DsarItem>(`/api/v1/dsar/${id}`, { method: "PATCH", body: data });
+}
+
+// Consent
+export type ConsentItem = {
+  id: number;
+  principal_name: string;
+  principal_email: string;
+  purpose: string;
+  channel: string;
+  status: string;
+  notice_version?: string;
+  given_at?: string;
+  withdrawn_at?: string;
+  created_at?: string;
+};
+
 export async function listConsent(status?: string) {
   const q = status ? `?status=${status}` : "";
-  return api<unknown[]>(`/api/v1/consent${q}`);
+  return api<ConsentItem[]>(`/api/v1/consent${q}`);
 }
 
 export async function createConsent(data: {
@@ -137,19 +147,121 @@ export async function createConsent(data: {
   purpose: string;
   channel?: string;
 }) {
-  return api("/api/v1/consent", { method: "POST", body: data });
+  return api<ConsentItem>("/api/v1/consent", { method: "POST", body: data });
 }
 
-// ─── Discovery ──────────────────────────────────────────
+export async function withdrawConsent(id: number) {
+  return api<ConsentItem>(`/api/v1/consent/${id}/withdraw`, { method: "POST" });
+}
+
+// Discovery
+export type SourceItem = {
+  id: number;
+  name: string;
+  source_type: string;
+  connection_info?: string;
+  status: string;
+  records_found: number;
+  pii_count: number;
+  last_scanned?: string;
+  created_at?: string;
+};
+
+export type FindingItem = {
+  id: number;
+  source_id?: number;
+  pii_type: string;
+  location: string;
+  sample_masked?: string;
+  confidence: number;
+  severity: string;
+  status: string;
+  created_at?: string;
+};
+
 export async function listSources() {
-  return api<unknown[]>("/api/v1/discovery/sources");
+  return api<SourceItem[]>("/api/v1/discovery/sources");
+}
+
+export async function createSource(data: { name: string; source_type: string; connection_info?: string }) {
+  return api<SourceItem>("/api/v1/discovery/sources", { method: "POST", body: data });
+}
+
+export async function scanSource(id: number) {
+  return api<SourceItem>(`/api/v1/discovery/sources/${id}/scan`, { method: "POST" });
 }
 
 export async function listFindings() {
-  return api<unknown[]>("/api/v1/discovery/findings");
+  return api<FindingItem[]>("/api/v1/discovery/findings");
 }
 
-// ─── PII Engine ─────────────────────────────────────────
+// ROPA
+export type RopaItem = {
+  id: number;
+  activity_name: string;
+  purpose: string;
+  legal_basis: string;
+  data_categories: string;
+  data_subjects: string;
+  recipients?: string;
+  retention_period?: string;
+  security_measures?: string;
+  cross_border: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export async function listRopa() {
+  return api<RopaItem[]>("/api/v1/ropa");
+}
+
+export async function createRopa(data: {
+  activity_name: string;
+  purpose: string;
+  legal_basis?: string;
+  data_categories: string;
+  data_subjects?: string;
+  recipients?: string;
+  retention_period?: string;
+  cross_border?: boolean;
+}) {
+  return api<RopaItem>("/api/v1/ropa", { method: "POST", body: data });
+}
+
+// Remediation
+export type RemediationItem = {
+  id: number;
+  task_id: string;
+  finding_id?: number;
+  title: string;
+  action: string;
+  severity: string;
+  status: string;
+  source?: string;
+  impact?: string;
+  created_at?: string;
+  completed_at?: string;
+};
+
+export async function listRemediation() {
+  return api<RemediationItem[]>("/api/v1/remediation");
+}
+
+export async function createRemediation(data: {
+  title: string;
+  action?: string;
+  severity?: string;
+  source?: string;
+  impact?: string;
+}) {
+  return api<RemediationItem>("/api/v1/remediation", { method: "POST", body: data });
+}
+
+export async function updateRemediation(id: number, data: { status?: string; action?: string }) {
+  return api<RemediationItem>(`/api/v1/remediation/${id}`, { method: "PATCH", body: data });
+}
+
+// PII
 export async function scanPii(text: string) {
   return api<{
     total_matches: number;
@@ -167,10 +279,7 @@ export async function scanPii(text: string) {
 }
 
 export async function validatePii(pii_type: string, value: string) {
-  return api("/api/v1/pii/validate", {
-    method: "POST",
-    body: { pii_type, value },
-  });
+  return api("/api/v1/pii/validate", { method: "POST", body: { pii_type, value } });
 }
 
 export { API_BASE };
