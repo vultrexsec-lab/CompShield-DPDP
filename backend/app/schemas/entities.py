@@ -31,6 +31,12 @@ class DSARResponse(BaseModel):
     principal_phone: Optional[str] = None
     description: Optional[str] = None
     assigned_to: Optional[str] = None
+    delegated_to: Optional[str] = None
+    priority: Optional[str] = "medium"
+    approval_status: Optional[str] = "not_required"
+    current_approval_level: Optional[int] = 0
+    required_approval_levels: Optional[int] = 0
+    escalated: Optional[bool] = False
     due_date: Optional[date] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

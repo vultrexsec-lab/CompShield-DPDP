@@ -107,3 +107,28 @@ class OrgSettings(Base):
     notify_email: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_inapp: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class DSARApprovalConfig(Base):
+    """Risk-based approval rules: e.g. erasure requires 2-level approval."""
+    __tablename__ = "dsar_approval_configs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_type: Mapped[str] = mapped_column(String(50))  # access, erasure, correction...
+    requires_approval: Mapped[bool] = mapped_column(Boolean, default=False)
+    approval_levels: Mapped[int] = mapped_column(Integer, default=1)
+    priority: Mapped[str] = mapped_column(String(50), default="medium")  # low medium high
+    sla_days: Mapped[int] = mapped_column(Integer, default=30)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class DSARApprovalAction(Base):
+    """Each level approval/rejection on a DSAR."""
+    __tablename__ = "dsar_approval_actions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dsar_id: Mapped[int] = mapped_column(ForeignKey("dsar_requests.id"))
+    level: Mapped[int] = mapped_column(Integer, default=1)
+    action: Mapped[str] = mapped_column(String(50))  # approved | rejected | pending
+    actor_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

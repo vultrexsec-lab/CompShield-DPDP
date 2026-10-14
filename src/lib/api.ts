@@ -323,3 +323,26 @@ export async function getSettings() { return api<any>("/api/v1/settings"); }
 export async function updateSettings(data: object) { return api("/api/v1/settings", { method: "PATCH", body: data }); }
 
 export async function getReportsSummary() { return api<any>("/api/v1/reports/summary"); }
+
+// DSAR workflow
+export async function delegateDsar(id: number, delegated_to: string, comment?: string) {
+  return api(`/api/v1/dsar/${id}/delegate`, { method: "POST", body: { delegated_to, comment } });
+}
+export async function escalateDsar(id: number) {
+  return api(`/api/v1/dsar/${id}/escalate`, { method: "POST" });
+}
+export async function approveDsar(id: number, action: "approved" | "rejected", comment?: string) {
+  return api(`/api/v1/dsar/${id}/approve`, { method: "POST", body: { action, comment } });
+}
+export async function completeDsar(id: number) {
+  return api(`/api/v1/dsar/${id}/complete`, { method: "POST" });
+}
+export async function listDsarApprovals(id: number) {
+  return api<any[]>(`/api/v1/dsar/${id}/approvals`);
+}
+export async function listApprovalConfigs() {
+  return api<any[]>("/api/v1/dsar/config/approvals");
+}
+export async function saveApprovalConfig(data: object) {
+  return api("/api/v1/dsar/config/approvals", { method: "POST", body: data });
+}

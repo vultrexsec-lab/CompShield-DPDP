@@ -56,6 +56,12 @@ class DSARRequest(Base):
     principal_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     assigned_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    delegated_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    priority: Mapped[str] = mapped_column(String(50), default="medium")
+    approval_status: Mapped[str] = mapped_column(String(50), default="not_required")  # not_required | pending_approval | approved | rejected
+    current_approval_level: Mapped[int] = mapped_column(Integer, default=0)
+    required_approval_levels: Mapped[int] = mapped_column(Integer, default=0)
+    escalated: Mapped[bool] = mapped_column(Boolean, default=False)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
