@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   listDsar, createDsar, delegateDsar, escalateDsar, approveDsar, completeDsar,
-  listApprovalConfigs, saveApprovalConfig, type DsarItem,
+  listApprovalConfigs, saveApprovalConfig, checkDsarSla, type DsarItem,
 } from "@/lib/api";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -109,6 +109,20 @@ export default function DsarPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const r = await checkDsarSla();
+                alert(`SLA check done. Escalated: ${r.escalated_count}` + (r.request_ids?.length ? `\n${r.request_ids.join(", ")}` : ""));
+                load();
+              } catch (e: any) { alert(e.message); }
+              finally { setBusy(false); }
+            }}
+            className="px-4 py-2.5 border border-amber-200 bg-amber-50 text-amber-900 rounded-xl text-sm font-medium hover:bg-amber-100 inline-flex items-center gap-2"
+          >
+            <Clock className="w-4 h-4" /> Run SLA check
+          </button>
           <button
             onClick={() => setShowConfig(true)}
             className="px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium hover:bg-slate-50 inline-flex items-center gap-2"

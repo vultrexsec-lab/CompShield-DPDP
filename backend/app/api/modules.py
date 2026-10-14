@@ -46,7 +46,13 @@ class VendorIn(BaseModel):
 class BreachIn(BaseModel):
     title: str
     severity: str = "medium"
+    status: str = "investigating"
     affected: Optional[str] = None
+    description: Optional[str] = None
+    data_categories: Optional[str] = None
+    notified_board: bool = False
+    notified_users: bool = False
+    detected_at: Optional[str] = None
 
 class DPIAIn(BaseModel):
     title: str
@@ -522,3 +528,57 @@ def delete_dpa(did: int, db: Session = Depends(get_db), user: User = Depends(get
     item = db.query(DPATemplate).filter(DPATemplate.id == did).first()
     if not item: raise HTTPException(404, "Not found")
     db.delete(item); db.commit()
+
+
+# ─── Breach DPDP Rule 7 workflow (72 hours) ─────────────
+@router.post("/breaches/{bid}/notify-board")
+def breach_notify_board(bid: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from datetime import datetime, timezone, timedelta
+    b = db.query(BreachIncident).filter(BreachIncident.id == bid).first()
+    if not b:
+        raise HTTPException(404, "Not found")
+    now = datetime.now(timezone.utc)
+    b.notified_board = True
+    b.board_notified_at = now.strftime("%Y-%m-%d %H:%M UTC")
+    b.status = "board_notified"
+    if not b.deadline_72h:
+        b.deadline_72h = (now + timedelta(hours=72)).strftime("%Y-%m-%d %H:%M UTC")
+    db.add(Notification(title=f"Breach {b.incident_id}: Board notified", message="Initial intimation (DPDP Rule 7). Detailed report due within 72h.", type="alert", link="/dashboard/breaches", organization_id=_org(user)))
+    db.commit(); db.refresh(b)
+    return b
+
+@router.post("/breaches/{bid}/detailed-report")
+def breach_detailed_report(bid: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from datetime import datetime, timezone
+    b = db.query(BreachIncident).filter(BreachIncident.id == bid).first()
+    if not b:
+        raise HTTPException(404, "Not found")
+    if not b.notified_board:
+        raise HTTPException(400, "Notify Board first")
+    b.detailed_report_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    b.status = "detailed_report"
+    db.add(Notification(title=f"Breach {b.incident_id}: Detailed report", message="72-hour detailed report filed.", type="info", link="/dashboard/breaches", organization_id=_org(user)))
+    db.commit(); db.refresh(b)
+    return b
+
+@router.post("/breaches/{bid}/notify-principals")
+def breach_notify_principals(bid: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from datetime import datetime, timezone
+    b = db.query(BreachIncident).filter(BreachIncident.id == bid).first()
+    if not b:
+        raise HTTPException(404, "Not found")
+    b.notified_users = True
+    b.principals_notified_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    b.status = "principals_notified"
+    db.add(Notification(title=f"Breach {b.incident_id}: Principals notified", message=f"Affected: {b.affected or "N/A"}", type="success", link="/dashboard/breaches", organization_id=_org(user)))
+    db.commit(); db.refresh(b)
+    return b
+
+@router.post("/breaches/{bid}/close")
+def breach_close(bid: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    b = db.query(BreachIncident).filter(BreachIncident.id == bid).first()
+    if not b:
+        raise HTTPException(404, "Not found")
+    b.status = "closed"
+    db.commit(); db.refresh(b)
+    return b

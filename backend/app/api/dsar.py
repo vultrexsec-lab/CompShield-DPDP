@@ -366,3 +366,37 @@ def delete_dsar(
         raise HTTPException(status_code=404, detail="DSAR not found")
     db.delete(item)
     db.commit()
+
+
+@router.post("/ops/check-sla")
+def check_sla_escalations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Auto-escalate DSAR past due_date or within 3 days of SLA."""
+    from datetime import date, timedelta
+    today = date.today()
+    q = db.query(DSARRequest).filter(
+        DSARRequest.status.notin_(["completed", "rejected"]),
+    )
+    if current_user.organization_id:
+        q = q.filter(DSARRequest.organization_id == current_user.organization_id)
+    escalated = []
+    for item in q.all():
+        if not item.due_date:
+            continue
+        days_left = (item.due_date - today).days
+        if days_left < 0 or days_left <= 3:
+            if not item.escalated or item.status != "escalated":
+                item.escalated = True
+                item.priority = "high"
+                if item.status not in ("pending_approval",):
+                    item.status = "escalated"
+                item.updated_at = datetime.now(timezone.utc)
+                db.add(Notification(
+                    title=f"SLA: {item.request_id} escalated",
+                    message=f"Due {item.due_date} ({days_left} days). Auto-escalated under DPDP timeline.",
+                    type="alert",
+                    link="/dashboard/dsar",
+                    organization_id=current_user.organization_id,
+                ))
+                escalated.append(item.request_id)
+    db.commit()
+    return {"escalated_count": len(escalated), "request_ids": escalated}

@@ -368,3 +368,19 @@ export async function signDpa(id: number, vendor_id?: number, vendor_name?: stri
   return api(`/api/v1/dpa-templates/${id}/sign?${q}`, { method: "POST" });
 }
 export async function deleteDpaTemplate(id: number) { return api(`/api/v1/dpa-templates/${id}`, { method: "DELETE" }); }
+
+export async function checkDsarSla() {
+  return api<{ escalated_count: number; request_ids: string[] }>("/api/v1/dsar/ops/check-sla", { method: "POST" });
+}
+export async function breachNotifyBoard(id: number) {
+  return api(`/api/v1/breaches/${id}/notify-board`, { method: "POST" });
+}
+export async function breachDetailedReport(id: number) {
+  return api(`/api/v1/breaches/${id}/detailed-report`, { method: "POST" });
+}
+export async function breachNotifyPrincipals(id: number) {
+  return api(`/api/v1/breaches/${id}/notify-principals`, { method: "POST" });
+}
+export async function breachClose(id: number) {
+  return api(`/api/v1/breaches/${id}/close`, { method: "POST" });
+}
