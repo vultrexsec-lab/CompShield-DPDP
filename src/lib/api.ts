@@ -391,3 +391,10 @@ export async function listConsentArtifacts() {
 export async function verifyConsentChain() {
   return api<{ total: number; valid: boolean; errors: any[]; tip: string }>("/api/v1/consent/artifacts/verify");
 }
+
+export async function getComplianceScore(sector = "general") {
+  return api<any>(`/api/v1/compliance/score?sector=${encodeURIComponent(sector)}`);
+}
+export async function getComplianceSectors() {
+  return api<any>("/api/v1/compliance/sectors");
+}

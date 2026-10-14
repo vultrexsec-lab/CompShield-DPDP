@@ -23,6 +23,7 @@ import {
   Wrench,
   Link2,
   FileSignature,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,11 @@ const navigation = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    name: "DPDP Compliance",
+    href: "/dashboard/compliance",
+    icon: Scale,
   },
   {
     name: "Data Discovery",

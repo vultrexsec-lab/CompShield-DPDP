@@ -582,3 +582,205 @@ def breach_close(bid: int, db: Session = Depends(get_db), user: User = Depends(g
     b.status = "closed"
     db.commit(); db.refresh(b)
     return b
+
+
+# ─── DPDP Compliance Score + Sector templates ───────────
+SECTOR_TEMPLATES = {
+    "general": {
+        "name": "General (DPDP default)",
+        "retention_default_years": 3,
+        "consent_mandatory_purposes": ["Marketing"],
+        "notes": "Baseline DPDP Act obligations for any Data Fiduciary.",
+        "rules": [
+            "Consent free, specific, informed, unconditional, clear",
+            "Withdrawal as easy as grant",
+            "DSAR / grievance timelines",
+            "Processor contracts (DPA)",
+            "Security safeguards + logs",
+            "Breach: Board + 72h detailed report + principals",
+        ],
+    },
+    "banking": {
+        "name": "Banking & NBFC (RBI-aligned)",
+        "retention_default_years": 8,
+        "consent_mandatory_purposes": ["KYC", "Account servicing", "Regulatory reporting"],
+        "notes": "Customer data often retained up to 8 years — may override pure consent-based deletion for regulatory holds.",
+        "rules": [
+            "KYC / CKYC records retention per RBI",
+            "Account statements and transaction logs long retention",
+            "Marketing consent still revocable",
+            "Cross-border only with permitted jurisdictions",
+            "Stronger access controls on Aadhaar/PAN vault",
+            "Incident reporting aligned with RBI cyber guidelines + DPDP Rule 7",
+        ],
+    },
+    "insurance": {
+        "name": "Insurance (IRDAI-aligned)",
+        "retention_default_years": 7,
+        "consent_mandatory_purposes": ["Policy servicing", "Claims", "Regulatory reporting"],
+        "notes": "Policy and claims data retention typically multi-year; health data needs heightened safeguards.",
+        "rules": [
+            "Policy & claims file retention",
+            "Health / medical data minimization",
+            "Nominee and beneficiary data controls",
+            "Marketing vs servicing consent separation",
+            "TPA / hospital processor DPAs mandatory",
+            "Breach notification per DPDP + sector circulars",
+        ],
+    },
+    "healthcare": {
+        "name": "Healthcare / Life sciences",
+        "retention_default_years": 5,
+        "consent_mandatory_purposes": ["Treatment", "Diagnostics"],
+        "notes": "Sensitive personal data — purpose limitation and access control critical.",
+        "rules": [
+            "Clinical data purpose limitation",
+            "Research consent separate from treatment",
+            "Vendor/BPO processor inventory",
+            "Encryption for health records at rest",
+            "Patient DSAR with third-party redaction",
+            "Breach: prioritize principal notification",
+        ],
+    },
+}
+
+
+@router.get("/compliance/sectors")
+def list_sectors(user: User = Depends(get_current_user)):
+    return {"sectors": SECTOR_TEMPLATES}
+
+
+@router.get("/compliance/score")
+def compliance_score(
+    sector: str = "general",
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Score org readiness against DPDP pillars (live data, not mock)."""
+    org = _org(user)
+
+    def count(model):
+        q = db.query(model)
+        if org:
+            if hasattr(model, "organization_id"):
+                q = q.filter(model.organization_id == org)
+        return q.count()
+
+    from app.models.entities import ConsentRecord, DSARRequest, DataSource, ROPAEntry
+    from app.models.more_entities import (
+        Vendor, BreachIncident, PurposeMapping, DPATemplate, ConsentArtifact, DPIARecord, GapItem,
+    )
+
+    consents = count(ConsentRecord)
+    artifacts = count(ConsentArtifact)
+    dsars = count(DSARRequest)
+    vendors = count(Vendor)
+    dpas_signed = db.query(DPATemplate).filter(DPATemplate.status == "signed")
+    if org:
+        dpas_signed = dpas_signed.filter(DPATemplate.organization_id == org)
+    dpas_signed_n = dpas_signed.count()
+    purposes = count(PurposeMapping)
+    sources = count(DataSource)
+    from app.models.entities import ROPAEntry as _ROPA
+    ropa = count(_ROPA)
+    breaches = count(BreachIncident)
+    breach_complete = (
+        db.query(BreachIncident)
+        .filter(BreachIncident.notified_board == True, BreachIncident.notified_users == True)
+    )
+    if org:
+        breach_complete = breach_complete.filter(BreachIncident.organization_id == org)
+    breach_complete_n = breach_complete.count()
+    dpias = count(DPIARecord)
+    gaps = count(GapItem)
+
+    pillars = [
+        {
+            "id": "consent",
+            "name": "1. Consent governance & lifecycle",
+            "max": 20,
+            "score": min(20, (8 if consents else 0) + (6 if artifacts else 0) + (6 if purposes else 0)),
+            "evidence": f"{consents} consents, {artifacts} immutable artifacts, {purposes} purposes",
+            "href": "/dashboard/consent",
+        },
+        {
+            "id": "dsar",
+            "name": "2. Data Principal rights (DSAR)",
+            "max": 20,
+            "score": min(20, (10 if dsars else 0) + 10),  # portal always available
+            "evidence": f"{dsars} requests · Public portal /portal live",
+            "href": "/dashboard/dsar",
+        },
+        {
+            "id": "processors",
+            "name": "3. Processors & third parties",
+            "max": 15,
+            "score": min(15, (7 if vendors else 0) + (5 if dpas_signed_n else 0) + (3 if purposes else 0)),
+            "evidence": f"{vendors} vendors, {dpas_signed_n} signed DPAs",
+            "href": "/dashboard/vendors",
+        },
+        {
+            "id": "ropa",
+            "name": "4. Records of processing (RoPA)",
+            "max": 10,
+            "score": min(10, 10 if ropa else 0),
+            "evidence": f"{ropa} RoPA records",
+            "href": "/dashboard/ropa",
+        },
+        {
+            "id": "security",
+            "name": "5. Security & integrity",
+            "max": 15,
+            "score": min(15, (8 if artifacts else 0) + (4 if sources else 0) + (3 if dpias else 0)),
+            "evidence": f"Hash chain artifacts · {sources} sources · {dpias} DPIAs",
+            "href": "/dashboard/consent",
+        },
+        {
+            "id": "breach",
+            "name": "6. Breach (Rule 7 / 72h)",
+            "max": 10,
+            "score": min(10, (5 if breaches else 2) + (5 if breach_complete_n else 0)),
+            "evidence": f"{breaches} incidents, {breach_complete_n} fully notified",
+            "href": "/dashboard/breaches",
+        },
+        {
+            "id": "governance",
+            "name": "7. Reporting & gap governance",
+            "max": 10,
+            "score": min(10, (5 if gaps else 0) + 5),
+            "evidence": f"{gaps} gap items · reports module",
+            "href": "/dashboard/reports",
+        },
+    ]
+    total = sum(p["score"] for p in pillars)
+    max_total = sum(p["max"] for p in pillars)
+    pct = round(100 * total / max_total) if max_total else 0
+
+    sec = SECTOR_TEMPLATES.get(sector, SECTOR_TEMPLATES["general"])
+
+    gaps_list = []
+    for p in pillars:
+        if p["score"] < p["max"]:
+            gaps_list.append({
+                "pillar": p["name"],
+                "missing_points": p["max"] - p["score"],
+                "action": f"Improve via {p['href']}",
+            })
+
+    return {
+        "score": total,
+        "max_score": max_total,
+        "percent": pct,
+        "grade": "A" if pct >= 85 else "B" if pct >= 70 else "C" if pct >= 50 else "D",
+        "pillars": pillars,
+        "gaps": gaps_list,
+        "sector": sector,
+        "sector_template": sec,
+        "summary": {
+            "consents": consents,
+            "dsars": dsars,
+            "vendors": vendors,
+            "artifacts": artifacts,
+            "breaches": breaches,
+        },
+    }
