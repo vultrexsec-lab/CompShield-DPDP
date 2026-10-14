@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.api.auth import router as auth_router
+from app.api import public as public_api
 from app.api.dsar import router as dsar_router
 from app.api.consent import router as consent_router
 from app.api.discovery import router as discovery_router
@@ -84,6 +85,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(dsar_router, prefix="/api/v1")
+app.include_router(public_api.router, prefix="/api/v1")
 app.include_router(consent_router, prefix="/api/v1")
 app.include_router(discovery_router, prefix="/api/v1")
 app.include_router(ropa_router, prefix="/api/v1")
